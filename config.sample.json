@@ -1,0 +1,15 @@
+{
+	"synology": {
+		"host": "192.168.0.2",
+		"port": "5000",
+		"username": "admin",
+		"password": "password1"
+	},
+
+	"fortknox": {
+		"url": "http://localhost:3001",
+		"api_key": "apikey1"
+	},
+
+	"port": 3002
+}
