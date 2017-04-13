@@ -11,5 +11,9 @@
 		"api_key": "apikey1"
 	},
 
+	"activation_window": 4,
+	"activation_threshold": 2,
+	"activation_backoff": 10,
+
 	"port": 3002
 }
