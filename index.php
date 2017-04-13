@@ -6,7 +6,7 @@ $config = json_decode(file_get_contents('config.json'));
 $camera = $_GET['camera'];
 $now = time();
 
-$history = json_decode(@file_get_contents('history.json'));
+$history = json_decode(@file_get_contents($config->writeable_directory . 'history.json'));
 $history = is_null($history) ? new stdClass : $history;
 
 if (!isset($history->$camera)) {
@@ -87,4 +87,4 @@ if ($cameraHistory->last_trigger_sent + $config->activation_backoff < $now && co
 	echo $camera . ' has ' . count($cameraHistory->recent_motion_detections) . ' activations in the past ' . $config->activation_window . ' seconds, and was last triggered ' . ($now - $cameraHistory->last_trigger_sent) . ' seconds ago.';
 }
 
-file_put_contents('history.json', json_encode($history, JSON_PRETTY_PRINT));
+file_put_contents($config->writeable_directory . 'history.json', json_encode($history, JSON_PRETTY_PRINT));

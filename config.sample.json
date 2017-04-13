@@ -15,5 +15,8 @@
 	"activation_threshold": 2,
 	"activation_backoff": 10,
 
+	"writeable_directory": "/tmp/",
+	"recording_duration": 10,
+
 	"port": 3002
 }
