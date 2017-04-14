@@ -36,8 +36,7 @@ class Synology
 
 	private function _init()
 	{
-		$this->_apis = $this->_request('query.cgi', 'SYNO.API.Info', 'Query', 1, array('query' => 'ALL'
-		), true)['data'];
+		$this->_apis = $this->_request('query.cgi', 'SYNO.API.Info', 'Query', 1, array('query' => 'ALL'), true)['data'];
 
 		$this->_sid = $this->request('SYNO.API.Auth', 'Login', array(
 			'account' => $this->_account,
@@ -62,18 +61,25 @@ class Synology
 		}, array_keys($params)));
 
 		$url = 'http://' . $this->_host . ':' . $this->_port . '/webapi/' . $endpoint . '?' . $query;
-
-		echo 'Requesting [' . $url . ']<br />';
-
 		$result = file_get_contents($url);
 
-		if ($json) {
+		if ($result === false) {
+			throw new Exception("Request to $url did not succeed");
+		} else if ($json) {
 			$result = json_decode($result, true);
+			$error = json_last_error();
 
-			if (!$result['success'])
-				throw new Exception($result['error']);
+			if ($error !== JSON_ERROR_NONE) {
+				throw new Exception("Request to $url did not return valid JSON (error code $error)");
+			}
+
+			if (!$result['success']) {
+				throw new Exception("Request to $url returned the error '" . $result['error'] . "'");
+			}
+
+			return $result;
+		} else {
+			return $result;
 		}
-
-		return $result;
 	}
 }

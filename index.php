@@ -2,6 +2,10 @@
 
 require_once 'Synology.php';
 
+function debug($msg) {
+	echo '[' . date('H:i:s.v') . ']: ' . $msg . '<br />';
+}
+
 $config = json_decode(file_get_contents('config.json'));
 $camera = $_GET['camera'];
 $shouldTrigger = false;
@@ -32,33 +36,37 @@ if ($cameraHistory->last_trigger_sent + $config->activation_backoff <= $now && c
 file_put_contents($config->writeable_directory . 'history.json', json_encode($history, JSON_PRETTY_PRINT));
 
 if ($shouldTrigger) {
-	$synology = new Synology($config->synology->host, $config->synology->port, $config->synology->username, $config->synology->password);
-	$recordingStart = max($now - $config->recording_duration, $lastTriggerSent);
-
-	$recordings = $synology->request('SYNO.SurveillanceStation.Recording', 'List', array(
-		'fromTime' => strtotime('midnight'),
-		'toTime' => $now
-	), true, 5)['data']['events'];
-
 	$recording = null;
 
-	foreach ($recordings as $contender) {
-		if ($contender['camera_name'] === $camera && $contender['startTime'] < $recordingStart && $contender['stopTime'] > $recordingStart) {
+	try {
+		$synology = new Synology($config->synology->host, $config->synology->port, $config->synology->username, $config->synology->password);
+		$recordingStart = max($now - $config->recording_duration, $lastTriggerSent);
 
-			$temp = tmpfile();
-			fwrite($temp, $synology->request('SYNO.SurveillanceStation.Recording', 'Download', array(
-				'id' => $recording['id'],
-				'offsetTimeMs' => ($recordingStart - $recording['startTime']) * 1000,
-				'playTimeMs' => $config->recording_duration * 1000
-			), false));
+		$recordings = $synology->request('SYNO.SurveillanceStation.Recording', 'List', array(
+			'fromTime' => strtotime('midnight'),
+			'toTime' => $now
+		), true, 5)['data']['events'];
 
-			$recording = new CurlFile(stream_get_meta_data($temp)['uri'], 'image/png', 'recording.mp4');
-			break;
+		foreach ($recordings as $contender) {
+			if ($contender['camera_name'] === $camera && $contender['startTime'] < $recordingStart && $contender['stopTime'] > $recordingStart) {
+
+				$temp = tmpfile();
+				fwrite($temp, $synology->request('SYNO.SurveillanceStation.Recording', 'Download', array(
+					'id' => $recording['id'],
+					'offsetTimeMs' => ($recordingStart - $recording['startTime']) * 1000,
+					'playTimeMs' => $config->recording_duration * 1000
+				), false));
+
+				$recording = new CurlFile(stream_get_meta_data($temp)['uri'], 'image/png', 'recording.mp4');
+				break;
+			}
 		}
+	} catch (Exception $e) {
+		debug($e->getMessage());
 	}
 
 	if (is_null($recording)) {
-		echo 'No matching recording for ' . $camera . ' where start is before ' . $recordingStart . ' and end is after ' . $recordingStart;
+		debug('No matching recording for ' . $camera . ' where start is before ' . $recordingStart . ' and end is after ' . $recordingStart);
 	}
 
 	$ch = curl_init();
@@ -81,14 +89,14 @@ if ($shouldTrigger) {
 		$info = curl_getinfo($ch);
 
 		if ($info['http_code'] == 200)
-			echo 'Data sent sucessfully...';
+			debug('Data sent sucessfully...');
 		else
-			echo 'Received ' . $info['http_code'] . ' from server';
+			debug('Received ' . $info['http_code'] . ' from server');
 	} else {
-		echo curl_error($ch);
+		debug(curl_error($ch));
 	}
 
 	curl_close($ch);
 } else {
-	echo $camera . ' has ' . count($cameraHistory->recent_motion_detections) . ' activations in the past ' . $config->activation_window . ' seconds, and was last triggered ' . ($now - $cameraHistory->last_trigger_sent) . ' seconds ago.';
+	debug($camera . ' has ' . count($cameraHistory->recent_motion_detections) . ' activations in the past ' . $config->activation_window . ' seconds, and was last triggered ' . ($now - $cameraHistory->last_trigger_sent) . ' seconds ago.');
 }
