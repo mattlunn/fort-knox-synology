@@ -19,7 +19,7 @@ if (!isset($history->$camera)) {
 $cameraHistory =& $history->$camera;
 $cameraHistory->recent_motion_detections[] = $now;
 $cameraHistory->recent_motion_detections = array_values(array_filter($cameraHistory->recent_motion_detections, function ($timestamp) use ($now, $config) {
-	return $now - $timestamp < $config->activation_window;
+	return $now - $timestamp <= $config->activation_window;
 }));
 
 $lastTriggerSent = $cameraHistory->last_trigger_sent;
