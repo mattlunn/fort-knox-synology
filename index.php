@@ -22,7 +22,9 @@ $cameraHistory->recent_motion_detections = array_values(array_filter($cameraHist
 	return $now - $timestamp < $config->activation_window;
 }));
 
-if ($cameraHistory->last_trigger_sent + $config->activation_backoff < $now && count($cameraHistory->recent_motion_detections) >= $config->activation_threshold) {
+$lastTriggerSent = $cameraHistory->last_trigger_sent;
+
+if ($cameraHistory->last_trigger_sent + $config->activation_backoff <= $now && count($cameraHistory->recent_motion_detections) >= $config->activation_threshold) {
 	$cameraHistory->last_trigger_sent = $now;
 	$shouldTrigger = true;
 }
@@ -31,7 +33,7 @@ file_put_contents($config->writeable_directory . 'history.json', json_encode($hi
 
 if ($shouldTrigger) {
 	$synology = new Synology($config->synology->host, $config->synology->port, $config->synology->username, $config->synology->password);
-	$recordingStart = $now - $config->recording_duration;
+	$recordingStart = max($now - $config->recording_duration, $lastTriggerSent);
 
 	$recordings = $synology->request('SYNO.SurveillanceStation.Recording', 'List', array(
 		'fromTime' => strtotime('midnight'),
@@ -41,9 +43,7 @@ if ($shouldTrigger) {
 	$recording = null;
 
 	foreach ($recordings as $contender) {
-		if ($contender['camera_name'] === $camera
-			&& $contender['startTime'] < $recordingStart
-			&& $contender['stopTime'] > $recordingStart) {
+		if ($contender['camera_name'] === $camera && $contender['startTime'] < $recordingStart && $contender['stopTime'] > $recordingStart) {
 
 			$recording = $contender;
 			break;
