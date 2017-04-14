@@ -45,20 +45,21 @@ if ($shouldTrigger) {
 	foreach ($recordings as $contender) {
 		if ($contender['camera_name'] === $camera && $contender['startTime'] < $recordingStart && $contender['stopTime'] > $recordingStart) {
 
-			$recording = $contender;
+			$temp = tmpfile();
+			fwrite($temp, $synology->request('SYNO.SurveillanceStation.Recording', 'Download', array(
+				'id' => $recording['id'],
+				'offsetTimeMs' => ($recordingStart - $recording['startTime']) * 1000,
+				'playTimeMs' => $config->recording_duration * 1000
+			), false));
+
+			$recording = new CurlFile(stream_get_meta_data($temp)['uri'], 'image/png', 'recording.mp4');
 			break;
 		}
 	}
 
-	if (is_null($recording))
-		throw new Exception('No matching recording...');
-
-	$temp = tmpfile();
-	fwrite($temp, $synology->request('SYNO.SurveillanceStation.Recording', 'Download', array(
-		'id' => $recording['id'],
-		'offsetTimeMs' => ($recordingStart - $recording['startTime']) * 1000,
-		'playTimeMs' => $config->recording_duration * 1000
-	), false));
+	if (is_null($recording)) {
+		echo 'No matching recording for ' . $camera . ' where start is before ' . $recordingStart . ' and end is after ' . $recordingStart;
+	}
 
 	$ch = curl_init();
 	curl_setopt_array($ch, array(
@@ -70,7 +71,7 @@ if ($shouldTrigger) {
 		CURLOPT_POSTFIELDS => array(
 			'device' => $camera,
 			'timestamp' => $now,
-			'recording' => new CurlFile(stream_get_meta_data($temp)['uri'], 'image/png', 'recording.mp4')
+			'recording' => $recording
 		)
 	));
 
@@ -88,7 +89,6 @@ if ($shouldTrigger) {
 	}
 
 	curl_close($ch);
-	fclose($temp);
 } else {
 	echo $camera . ' has ' . count($cameraHistory->recent_motion_detections) . ' activations in the past ' . $config->activation_window . ' seconds, and was last triggered ' . ($now - $cameraHistory->last_trigger_sent) . ' seconds ago.';
 }
