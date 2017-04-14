@@ -4,6 +4,7 @@ require_once 'Synology.php';
 
 $config = json_decode(file_get_contents('config.json'));
 $camera = $_GET['camera'];
+$shouldTrigger = false;
 $now = time();
 
 $history = json_decode(@file_get_contents($config->writeable_directory . 'history.json'));
@@ -23,7 +24,12 @@ $cameraHistory->recent_motion_detections = array_values(array_filter($cameraHist
 
 if ($cameraHistory->last_trigger_sent + $config->activation_backoff < $now && count($cameraHistory->recent_motion_detections) >= $config->activation_threshold) {
 	$cameraHistory->last_trigger_sent = $now;
+	$shouldTrigger = true;
+}
 
+file_put_contents($config->writeable_directory . 'history.json', json_encode($history, JSON_PRETTY_PRINT));
+
+if ($shouldTrigger) {
 	$synology = new Synology($config->synology->host, $config->synology->port, $config->synology->username, $config->synology->password);
 	$recordingStart = $now - $config->recording_duration;
 
@@ -86,5 +92,3 @@ if ($cameraHistory->last_trigger_sent + $config->activation_backoff < $now && co
 } else {
 	echo $camera . ' has ' . count($cameraHistory->recent_motion_detections) . ' activations in the past ' . $config->activation_window . ' seconds, and was last triggered ' . ($now - $cameraHistory->last_trigger_sent) . ' seconds ago.';
 }
-
-file_put_contents($config->writeable_directory . 'history.json', json_encode($history, JSON_PRETTY_PRINT));
