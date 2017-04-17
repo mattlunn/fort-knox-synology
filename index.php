@@ -108,7 +108,7 @@ switch ($eventType) {
 		}
 	break;
 	case 'disconnection':
-		createEvent($camera, $now, $eventType, getRecording($camera, $now, $config->recording_duration));
+		createEvent($camera, $now, $eventType, getRecording($camera, $now, $now - $config->recording_duration));
 	break;
 	case 'connection':
 		createEvent($camera, $now, $eventType, null);
