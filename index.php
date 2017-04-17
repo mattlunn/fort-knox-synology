@@ -52,8 +52,8 @@ if ($shouldTrigger) {
 
 				$temp = tmpfile();
 				fwrite($temp, $synology->request('SYNO.SurveillanceStation.Recording', 'Download', array(
-					'id' => $recording['id'],
-					'offsetTimeMs' => ($recordingStart - $recording['startTime']) * 1000,
+					'id' => $contender['id'],
+					'offsetTimeMs' => ($recordingStart - $contender['startTime']) * 1000,
 					'playTimeMs' => $config->recording_duration * 1000
 				), false));
 
